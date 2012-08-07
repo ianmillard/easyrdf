@@ -50,6 +50,10 @@ class EasyRdf_Parser_Rapper extends EasyRdf_Parser_Json
 
     const MINIMUM_RAPPER_VERSION = '1.4.17';
 
+    private static $_config = array(
+        'ignore_errors' => false,
+    );
+
     /**
      * Constructor
      *
@@ -77,6 +81,25 @@ class EasyRdf_Parser_Rapper extends EasyRdf_Parser_Json
     }
 
     /**
+     * Set global configuration parameters for this Parser
+     *
+     * @param  array $config
+     * @throws InvalidArgumentException
+     */
+    public static function setConfig($config = array())
+    {
+        if ($config == null or !is_array($config)) {
+            throw new InvalidArgumentException(
+                "\$config should be an array and cannot be null"
+            );
+        }
+
+        foreach ($config as $k => $v) {
+            self::$_config[strtolower($k)] = $v;
+        }
+    }
+
+    /**
       * Parse an RDF document into an EasyRdf_Graph
       *
       * @param object EasyRdf_Graph $graph   the graph to load the data into
@@ -96,12 +119,18 @@ class EasyRdf_Parser_Rapper extends EasyRdf_Parser_Json
             2 => array("pipe", "w")
         );
 
+        // are we to ignore parse errors, or throw exception if they occur?
+        $ignore_errors = 
+            (isset(self::$_config['ignore_errors']) && self::$_config['ignore_errors'] === true)
+            ? ' --ignore-errors'
+            : '';
+
         $process = proc_open(
             escapeshellcmd($this->_rapperCmd).
             " --quiet ".
             " --input " . escapeshellarg($format).
             " --output json ".
-            " --ignore-errors ".
+            $ignore_errors.
             " --input-uri " . escapeshellarg($baseUri).
             " --output-uri -".
             " - ",
