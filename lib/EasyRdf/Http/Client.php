@@ -418,6 +418,22 @@ class EasyRdf_Http_Client
 
             $headers = $this->_prepareHeaders($uri['host'], $port);
 
+            //  do we have a cache to consult?
+            //  if so, formulate key representing this request
+            if (isset($this->_config['cache'])) {
+                    $key = $host . $port . $uri['path'];
+                    if (isset($uri['query'])) $key .= $uri['query'];
+                    if (isset($_rawPostData)) $key .= $_rawPostData;
+                    $key = sha1($key);
+            }
+
+            //  if we have a cache, see if it contains a response for the current request
+            $maxAge = isset($this->_config['cachemaxage']) ? $this->_config['cachemaxage'] : 0;
+            if (isset($this->_config['cache']) && $this->_config['cache']->contains($key, $maxAge))
+                return $this->_config['cache']->get($key, $maxAge);
+
+            //  make new HTTP request to obtain content
+
             // Open socket to remote server
             $socket = @fsockopen(
                 $host, $port, $errno, $errstr, $this->_config['timeout']
@@ -494,6 +510,11 @@ class EasyRdf_Http_Client
 
 
         } while ($this->_redirectCounter < $this->_config['maxredirects']);
+
+        //  if we have a cache, then store the response
+        //  FIXME: should probably obey http cache directives here?
+        if ($response->isSuccessful() && isset($this->_config['cache']))
+            $this->_config['cache']->put($key, $response);
 
         return $response;
     }
